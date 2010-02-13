@@ -42,16 +42,36 @@
 #define LED5     10
 #define LED6     11
 #define LED7     12
-#define DEBOUNCE 20
+#define DEBOUNCE 50
 #define REPEAT   500
 
-int selected = 0;
-long selectbutton_pressed_at;
-int selectbutton_is_pressed = 0;
-int run = 0;
 long now;
+
+// Button states and debouncing
+long last_statechange_select;
+long last_statechange_start;
+
+int state_select = LOW;
+int state_start = LOW;
+
+int oldstate_select = LOW;
+int oldstate_start = LOW;
+
+int lock_select = 0;
+
+int reading;
+
+int selected = 0;
+int work_selected = 0;
+
 int valid_times[] = {0,1,2,4,8,16,32,64,128,7,14,28,56,112,224};
 int valid_index   = 14;
+
+// runnable is set if exposure can be started
+int runnable = 0;
+
+// running is set while exposure is running
+int running = 0;
 
 void setup(){
   pinMode(SELECT,  INPUT);
@@ -65,34 +85,58 @@ void setup(){
   pinMode(LED5,    OUTPUT);
   pinMode(LED6,    OUTPUT);
   pinMode(LED7,    OUTPUT);
+  pinMode(13, OUTPUT); //////
   Serial.begin(9600);
 }
 
 void loop(){
   now = millis();
-  if(digitalRead(SELECT) == HIGH){
-    selectbutton_pressed_at = now;
+  // Track state of SELECT button & debounce
+  reading = digitalRead(SELECT);
+  if(reading != oldstate_select){
+    last_statechange_select = now;
   }
-  if (digitalRead(START) == HIGH){
-    run = 1;
+  if (now - last_statechange_select > DEBOUNCE){
+      state_select = reading;
   }
-  if (0 != selectbutton_pressed_at){
-    if (now - selectbutton_pressed_at > DEBOUNCE){
-      selectbutton_is_pressed = 1;
-    }
+  oldstate_select = reading;
+
+  // Track state of START button & debounce
+  reading = digitalRead(START);
+  if(reading != oldstate_start){
+    last_statechange_start = now;
   }
-  if (selectbutton_is_pressed){  
-    selectbutton_is_pressed = 0;
-    selectbutton_pressed_at = 0;
+  if (now - last_statechange_start > DEBOUNCE){
+      state_start = reading;
+  }
+  oldstate_start = reading;
+
+  // Select next mode only once, even if SELECT button is kept pressed.
+  if (state_select == LOW){
+    lock_select = 0;
+  } 
+  if ((state_select == HIGH) and (0 == lock_select) and (0 == running)){  
     if (selected < valid_index){
       selected++;
     }else{
       selected = 0;
     }
+    lock_select = 1;
     Serial.println(valid_times[selected], BIN);
   }
-  if(1 == run){
-    run = 0;
-    Serial.println("Program start");
+  if((0 == running) and (state_start == HIGH)){
+    running = now;
+    work_selected = selected;
+  }
+  if (running){
+    while(0 != work_selected){
+      if (work_selected & 1){
+        Serial.println("Open shutter for 1m");
+        work_selected = work_selected | 1;
+      }
+      
+          
+      running = 0;
+    }
   }
 }
