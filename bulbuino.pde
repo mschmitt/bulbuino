@@ -14,7 +14,7 @@ h = 7200 (120m)
 
 Each single time, or any reasonable combination of 3 can be selected.
 
-Hence, we have 15 programs including the "zero" program:
+Hence, we have 19 programs including the "zero" program:
 
 Program     hgfedcba
 0           00000000
@@ -32,6 +32,10 @@ Program     hgfedcba
 12          00111000
 13          01110000
 14          11100000
+15          00010101
+16          00101010
+17          01010100
+18          10101000
 
 For schematics, see Fritzing data enclosed in the repository.
 
@@ -71,7 +75,7 @@ int lock_select = 0;
 int program_selected = 0;
 
 // Exposure programs. Time in seconds.
-int program[15][3]  = 
+int program[19][3]  = 
 {
   {   0,    0,    0},
   {  60,    0,    0},
@@ -87,11 +91,15 @@ int program[15][3]  =
   { 240,  480,  900},
   { 480,  900, 1800},
   { 900, 1800, 3600},
-  {1800, 3600, 7200}
+  {1800, 3600, 7200},
+  {  60,  240,  900},
+  { 120,  480, 1800},
+  { 240,  900, 3600},
+  { 480, 1800, 7200}
 };
 
 // How to display selected program on LED row:
-int program_ledstate[15][8] =
+int program_ledstate[19][8] =
 {
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 1},
@@ -107,12 +115,16 @@ int program_ledstate[15][8] =
   {0, 0, 0, 1, 1, 1, 0, 0},
   {0, 0, 1, 1, 1, 0, 0, 0},
   {0, 1, 1, 1, 0, 0, 0, 0},
-  {1, 1, 1, 0, 0, 0, 0, 0}
+  {1, 1, 1, 0, 0, 0, 0, 0},
+  {0, 0, 0, 1, 0, 1, 0, 1},
+  {0, 0, 1, 0, 1, 0, 1, 0},
+  {0, 1, 0, 1, 0, 1, 0, 0},
+  {1, 0, 1, 0, 1, 0, 0, 0}
 };
 
 // The number of known programs. Sorry, I know too little
 // C to properly find the number of elements in the array. ;-)
-int program_index   = 14;
+int program_index   = 18;
 
 // Pins to which the LEDs are connected:
 int led[8] =  {5, 6, 7, 8, 9, 10, 11, 12};
