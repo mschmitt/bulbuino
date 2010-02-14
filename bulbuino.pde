@@ -37,9 +37,9 @@ For schematics, see Fritzing data enclosed in the repository.
 
 */
 
-#define SELECT    2
-#define START     3  
-#define SHUTTER   4
+#define SHUTTER   2
+#define SELECT    3
+#define START     4  
 #define SHUTLED  13
 #define DEBOUNCE 50
 #define REPEAT   500
