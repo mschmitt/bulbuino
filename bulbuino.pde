@@ -46,7 +46,7 @@ For schematics, see Fritzing data enclosed in the repository.
 #define CAM_LAG  200
 
 // This is used to make time pass faster in testing. ;-)
-long millis_in_a_second = 100;
+long millis_in_a_second = 1000;
 
 // Stores millis per loop iteration
 long now;
