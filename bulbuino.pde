@@ -39,6 +39,7 @@ Program     hgfedcba
 #define SELECT    2
 #define START     3  
 #define SHUTTER   4
+#define SHUTLED  13
 #define LED0      5
 #define LED1      6
 #define LED2      7
@@ -49,6 +50,7 @@ Program     hgfedcba
 #define LED7     12
 #define DEBOUNCE 50
 #define REPEAT   500
+#define CAM_LAG  200
 
 long now;
 
@@ -111,6 +113,7 @@ void setup(){
   pinMode(SELECT,  INPUT);
   pinMode(START,   INPUT);
   pinMode(SHUTTER, OUTPUT);
+  pinMode(SHUTLED, OUTPUT);
   pinMode(LED0,    OUTPUT);
   pinMode(LED1,    OUTPUT);
   pinMode(LED2,    OUTPUT);
@@ -119,7 +122,6 @@ void setup(){
   pinMode(LED5,    OUTPUT);
   pinMode(LED6,    OUTPUT);
   pinMode(LED7,    OUTPUT);
-  pinMode(13, OUTPUT); //////
   Serial.begin(9600);
   Serial.print(millis());
   Serial.println(" Bulbuino is up.");
@@ -188,10 +190,13 @@ void loop(){
   if (running){
     if ((0 == shutter_open) and (now > shutter_available_at)){
       if (program[program_selected][program_step] > 0){
-        digitalWrite(13, HIGH);
+        digitalWrite(SHUTLED, HIGH);
+        digitalWrite(SHUTTER, HIGH);
         // Calculate when the shutter shall close again
         duration = program[program_selected][program_step] * millis_in_a_second;
-        end_exposure = now + duration;
+        // CAMLAG is a rough (but sufficient) estimate for shutter lag.
+        // (This does nothing for exposure, but gives nice round EXIF data.)
+        end_exposure = now + duration + CAM_LAG;
         Serial.print(now);
         Serial.print(" Start Exposure for milliseconds: ");
         Serial.println(duration);
@@ -210,7 +215,8 @@ void loop(){
     // See whether we are ready to close the shutter again
     if (program[program_selected][program_step] > 0){
       if (now > end_exposure){
-        digitalWrite(13, LOW);
+        digitalWrite(SHUTLED, LOW);
+        digitalWrite(SHUTTER, LOW);
         Serial.print(now);
         Serial.println(" End Exposure.");
         shutter_available_at = now + 2000;
