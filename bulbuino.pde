@@ -1,34 +1,39 @@
-// Bulbuino - Remote Controller for Bulb Exposure
+/* 
 
-// Possible exposure combinations (seconds):
-// a = 60    (1m)
-// b = 120   (2m)
-// c = 240   (4m)
-// d = 480   (8m)
-// e = 900  (15m)
-// f = 1800 (30m)
-// g = 3600 (60m)
-// h = 7200 (120m)
-//
-// Each single time, or any reasonable combination of 3 can be selected.
-//
-// Internally represented as:
-// hgfedcba  DEC
-// 00000000    0
-// 00000001    1
-// 00000010    2
-// 00000100    4
-// 00001000    8
-// 00010000   16
-// 00100000   32
-// 01000000   64
-// 10000000  128
-// 00000111    7
-// 00001110   14 
-// 00011100   28
-// 00111000   56
-// 01110000  112
-// 11100000  224
+Bulbuino - Camera Remote Controller for Bulb Exposure
+
+Possible exposure combinations (seconds):
+a = 60    (1m)
+b = 120   (2m)
+c = 240   (4m)
+d = 480   (8m)
+e = 900  (15m)
+f = 1800 (30m)
+g = 3600 (60m)
+h = 7200 (120m)
+
+Each single time, or any reasonable combination of 3 can be selected.
+
+Hence, we have 15 programs including the "zero" program:
+
+Program     hgfedcba
+0           00000000
+1           00000001
+2           00000010
+3           00000100
+4           00001000
+5           00010000
+6           00100000
+7           01000000
+8           10000000
+9           00000111
+10          00001110
+11          00011100
+12          00111000
+13          01110000
+14          11100000
+
+*/
 
 
 #define SELECT    2
@@ -61,17 +66,49 @@ int lock_select = 0;
 
 int reading;
 
-int selected = 0;
-int work_selected = 0;
+int program_selected = 0;
 
-int valid_times[] = {0,1,2,4,8,16,32,64,128,7,14,28,56,112,224};
-int valid_index   = 14;
+// Preset programs. Time in seconds.
+int program[14][3]  = 
+{
+  {   0,    0,    0},
+  {  60,    0,    0},
+  { 240,    0,    0},
+  { 480,    0,    0},
+  { 900,    0,    0},
+  {1800,    0,    0},
+  {3600,    0,    0},
+  {7200,    0,    0},
+  {  60,  120,  240},
+  { 120,  240,  480},
+  { 240,  480,  900},
+  { 480,  900, 1800},
+  { 900, 1800, 3600},
+  {1800, 3600, 7200}
+};
 
-// runnable is set if exposure can be started
-int runnable = 0;
+int program_index   = 13;
 
 // running is set while exposure is running
-int running = 0;
+long running = 0;
+
+// Tracks whether shutter is closed or open
+int shutter_open = 0;
+// Stores calculated duration
+long duration;
+// When the running exposure should end
+long end_exposure;
+// Which step of the program is currently running?
+int program_step = 0;
+// Program_summary - For serial debug output during program selection
+char program_summary[40];
+// Used to keep the shutter closed for a while after each exposure.
+long shutter_available_at = 0;
+// Used to make time pass faster. ;-)
+long millis_in_a_second = 100;
+
+// RESET hack as per http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1235780325/10#10
+void(* resetFunc) (void) = 0;
 
 void setup(){
   pinMode(SELECT,  INPUT);
@@ -87,6 +124,8 @@ void setup(){
   pinMode(LED7,    OUTPUT);
   pinMode(13, OUTPUT); //////
   Serial.begin(9600);
+  Serial.print(millis());
+  Serial.println(" Bulbuino is up.");
 }
 
 void loop(){
@@ -116,27 +155,92 @@ void loop(){
     lock_select = 0;
   } 
   if ((state_select == HIGH) and (0 == lock_select) and (0 == running)){  
-    if (selected < valid_index){
-      selected++;
+    if (program_selected < program_index){
+      program_selected++;
     }else{
-      selected = 0;
+      program_selected = 0;
     }
     lock_select = 1;
-    Serial.println(valid_times[selected], BIN);
+    sprintf(program_summary, "%i -> %i %i %i", 
+      program_selected, 
+      program[program_selected][0],
+      program[program_selected][1],
+      program[program_selected][2]
+      );
+    Serial.print(now);
+    Serial.print(" Selected Program: ");
+    Serial.println(program_summary);
   }
+  
+  // Set "running" if start button was pressed and exposure is not already running.
   if((0 == running) and (state_start == HIGH)){
+    Serial.print(now);
+    Serial.println(" Running.");
     running = now;
-    work_selected = selected;
+    lock_select = 1;
   }
+
+  // Catch RESET request
+  // User can request a RESET by pressing SELECT and START simultaneuosly
+  if ((state_select == HIGH) and (state_start == HIGH)){
+    Serial.print(now);
+    Serial.println(" Reset request by user. ADIOS!");
+    resetFunc();
+  }
+  // We will take three exposures
+  // 1) program[program_selected][0]
+  // 2) program[program_selected][1]
+  // 3) program[program_selected][2]
+  //
+  // program_step holds 0, 1, 2 - The step that we are currently working on.
+  // 
+  // Unset the running flag if program step has gone over 2 after last shutter close
   if (running){
-    while(0 != work_selected){
-      if (work_selected & 1){
-        Serial.println("Open shutter for 1m");
-        work_selected = work_selected | 1;
+    if ((0 == shutter_open) and (now > shutter_available_at)){
+      if (program[program_selected][program_step] > 0){
+        digitalWrite(13, HIGH);
+        // Calculate when the shutter shall close again
+        duration = program[program_selected][program_step] * millis_in_a_second;
+        end_exposure = now + duration;
+        Serial.print(now);
+        Serial.print(" Start Exposure for milliseconds: ");
+        Serial.println(duration);
+        shutter_open = 1;
+      }else{
+        Serial.print(now);
+        Serial.println(" Skipping zero Exposure, not actually opening shutter.");
+        program_step++;
+        Serial.print(now);
+        Serial.print(" Program Step++ (Skipping) -> ");
+        Serial.println(program_step);
       }
-      
-          
-      running = 0;
     }
+  }
+  if (1 == shutter_open){
+    // See whether we are ready to close the shutter again
+    if (program[program_selected][program_step] > 0){
+      if (now > end_exposure){
+        digitalWrite(13, LOW);
+        Serial.print(now);
+        Serial.println(" End Exposure.");
+        shutter_available_at = now + 2000;
+        Serial.print(now);
+        Serial.print(" Shutter will be available again at: ");
+        Serial.println(shutter_available_at);
+        shutter_open = 0;
+        program_step++;
+        Serial.print(now);
+        Serial.print(" Program Step++ -> ");
+        Serial.println(program_step);
+      }
+    }
+  }
+  // See whether end of program was reached and go back to selection phase.
+  if (program_step > 2){
+    Serial.print(now);
+    Serial.println(" Done! (Program Step > 2) -> Reset Program Step to 0.");
+    running = 0;
+    lock_select = 0;
+    program_step = 0;
   }
 }
