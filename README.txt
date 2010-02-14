@@ -1,5 +1,5 @@
-Bulbuino - Camera Remote Controller for Bulb Exposure
------------------------------------------------------
+Bulbuino - Bulb Exposure Bracketer
+----------------------------------
 
 This is really just a test for user interaction, buttons,
 optocoupler and stuff.

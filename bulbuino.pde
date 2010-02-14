@@ -1,6 +1,6 @@
 /* 
 
-Bulbuino - Camera Remote Controller for Bulb Exposure
+Bulbuino - Bulb Exposure Bracketer
 
 Possible exposure combinations (seconds):
 a = 60    (1m)
