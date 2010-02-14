@@ -107,9 +107,6 @@ long shutter_available_at = 0;
 // Used to make time pass faster. ;-)
 long millis_in_a_second = 100;
 
-// RESET hack as per http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1235780325/10#10
-void(* resetFunc) (void) = 0;
-
 void setup(){
   pinMode(SELECT,  INPUT);
   pinMode(START,   INPUT);
@@ -180,13 +177,6 @@ void loop(){
     lock_select = 1;
   }
 
-  // Catch RESET request
-  // User can request a RESET by pressing SELECT and START simultaneuosly
-  if ((state_select == HIGH) and (state_start == HIGH)){
-    Serial.print(now);
-    Serial.println(" Reset request by user. ADIOS!");
-    resetFunc();
-  }
   // We will take three exposures
   // 1) program[program_selected][0]
   // 2) program[program_selected][1]
