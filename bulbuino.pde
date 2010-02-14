@@ -33,25 +33,22 @@ Program     hgfedcba
 13          01110000
 14          11100000
 
-*/
+For schematics, see Fritzing data enclosed in the repository.
 
+*/
 
 #define SELECT    2
 #define START     3  
 #define SHUTTER   4
 #define SHUTLED  13
-#define LED0      5
-#define LED1      6
-#define LED2      7
-#define LED3      8
-#define LED4      9
-#define LED5     10
-#define LED6     11
-#define LED7     12
 #define DEBOUNCE 50
 #define REPEAT   500
 #define CAM_LAG  200
 
+// This is used to make time pass faster in testing. ;-)
+long millis_in_a_second = 100;
+
+// Stores millis per loop iteration
 long now;
 
 // Button states and debouncing
@@ -64,17 +61,21 @@ int state_start = LOW;
 int oldstate_select = LOW;
 int oldstate_start = LOW;
 
+// Block SELECT button when:
+// 1) It is held depressed
+// 2) Exposure is running
 int lock_select = 0;
 
-int reading;
-
+// The SELECT button modifies only this value,
+// which is then resolved to the actual exposure program by other means.
 int program_selected = 0;
 
-// Preset programs. Time in seconds.
-int program[14][3]  = 
+// Exposure programs. Time in seconds.
+int program[15][3]  = 
 {
   {   0,    0,    0},
   {  60,    0,    0},
+  { 120,    0,    0},
   { 240,    0,    0},
   { 480,    0,    0},
   { 900,    0,    0},
@@ -89,10 +90,44 @@ int program[14][3]  =
   {1800, 3600, 7200}
 };
 
-int program_index   = 13;
+// How to display selected program on LED row:
+int program_ledstate[15][8] =
+{
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 1},
+  {0, 0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0, 0},
+  {0, 0, 0, 0, 1, 0, 0, 0},
+  {0, 0, 0, 1, 0, 0, 0, 0},
+  {0, 0, 1, 0, 0, 0, 0, 0},
+  {0, 1, 0, 0, 0, 0, 0, 0},
+  {1, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 1, 1, 1},
+  {0, 0, 0, 0, 1, 1, 1, 0},
+  {0, 0, 0, 1, 1, 1, 0, 0},
+  {0, 0, 1, 1, 1, 0, 0, 0},
+  {0, 1, 1, 1, 0, 0, 0, 0},
+  {1, 1, 1, 0, 0, 0, 0, 0}
+};
+
+// The number of known programs. Sorry, I know too little
+// C to properly find the number of elements in the array. ;-)
+int program_index   = 14;
+
+// Pins to which the LEDs are connected:
+int led[8] =  {5, 6, 7, 8, 9, 10, 11, 12};
+
+// Holds current state per LED for display according to
+// what is stored in program_selected. 
+int ledstate[8];
 
 // running is set while exposure is running
 long running = 0;
+
+// Blink state foo (for during exposure)
+long blink_interval = 200;
+long blink_timestamp;
+int blinkstate = HIGH;
 
 // Tracks whether shutter is closed or open
 int shutter_open = 0;
@@ -106,29 +141,32 @@ int program_step = 0;
 char program_summary[40];
 // Used to keep the shutter closed for a while after each exposure.
 long shutter_available_at = 0;
-// Used to make time pass faster. ;-)
-long millis_in_a_second = 100;
 
 void setup(){
+  Serial.begin(9600);
+  Serial.print(millis());
+  Serial.println(" Bulbuino is up.");
   pinMode(SELECT,  INPUT);
   pinMode(START,   INPUT);
   pinMode(SHUTTER, OUTPUT);
   pinMode(SHUTLED, OUTPUT);
-  pinMode(LED0,    OUTPUT);
-  pinMode(LED1,    OUTPUT);
-  pinMode(LED2,    OUTPUT);
-  pinMode(LED3,    OUTPUT);
-  pinMode(LED4,    OUTPUT);
-  pinMode(LED5,    OUTPUT);
-  pinMode(LED6,    OUTPUT);
-  pinMode(LED7,    OUTPUT);
-  Serial.begin(9600);
+  // Set Output mode for LEDs
   Serial.print(millis());
-  Serial.println(" Bulbuino is up.");
+  Serial.println(" Now setting LED modes.");
+  for (int thisled = 0; thisled <= 7; thisled++){
+    Serial.print(millis());
+    Serial.print(" LED set to OUTPUT: ");
+    Serial.println(thisled);
+    pinMode(led[thisled], OUTPUT);
+  }
 }
 
 void loop(){
   now = millis();
+  
+  // Temporary holding space for button readouts
+  int reading;
+  
   // Track state of SELECT button & debounce
   reading = digitalRead(SELECT);
   if(reading != oldstate_select){
@@ -169,8 +207,41 @@ void loop(){
     Serial.print(now);
     Serial.print(" Selected Program: ");
     Serial.println(program_summary);
+    // Prepare LED states according to selected program
+    ledstate[0] = program_ledstate[program_selected][0];
+    ledstate[1] = program_ledstate[program_selected][1];
+    ledstate[2] = program_ledstate[program_selected][2];
+    ledstate[3] = program_ledstate[program_selected][3];
+    ledstate[4] = program_ledstate[program_selected][4];
+    ledstate[5] = program_ledstate[program_selected][5];
+    ledstate[6] = program_ledstate[program_selected][6];
+    ledstate[7] = program_ledstate[program_selected][7];
   }
   
+  // Is blinking requested (exposure running)
+  // Then set blinkstate accordingly.
+  // Otherwise, blinkstate is HIGH (LED is on)
+  if (running){
+    if ((blinkstate == HIGH) and (now > blink_timestamp)){
+      blinkstate = LOW;
+      blink_timestamp = now + blink_interval;
+    }else if (now > blink_timestamp){
+      blinkstate = HIGH; 
+      blink_timestamp = now + blink_interval;
+    }
+  }else{
+    blinkstate = HIGH;
+  }
+ 
+  // Set LEDs to requested state.
+  for (int thisled = 0; thisled <= 7; thisled++){
+    if (ledstate[thisled]){
+      digitalWrite(led[thisled], blinkstate);
+    }else{
+      digitalWrite(led[thisled], LOW);
+    }
+  }
+            
   // Set "running" if start button was pressed and exposure is not already running.
   if((0 == running) and (state_start == HIGH)){
     Serial.print(now);
