@@ -41,13 +41,13 @@ For schematics, see Fritzing data enclosed in the repository.
 
 */
 
-#define SHUTTER   2
-#define SELECT    3
-#define START     4  
-#define SHUTLED  13
-#define DEBOUNCE 50
-#define REPEAT   500
-#define CAM_LAG  200
+#define SHUTTER     2
+#define SELECT      3
+#define START       4  
+#define SHUTLED    13
+#define DEBOUNCE   50
+#define SHOTWAIT 2000
+#define CAM_LAG   200
 
 // This is used to make time pass faster in testing. ;-)
 long millis_in_a_second = 1000;
@@ -56,14 +56,15 @@ long millis_in_a_second = 1000;
 long now;
 
 // Button states and debouncing
+// Inverted input logic, so we can use internal pull-up
 long last_statechange_select;
 long last_statechange_start;
 
-int state_select = LOW;
-int state_start = LOW;
+int state_select = HIGH;
+int state_start = HIGH;
 
-int oldstate_select = LOW;
-int oldstate_start = LOW;
+int oldstate_select = HIGH;
+int oldstate_start = HIGH;
 
 // Block SELECT button when:
 // 1) It is held depressed
@@ -158,8 +159,13 @@ void setup(){
   Serial.begin(9600);
   Serial.print(millis());
   Serial.println(" Bulbuino is up.");
+  // Activate inputs
   pinMode(SELECT,  INPUT);
   pinMode(START,   INPUT);
+  // Activate internal pull-up for inputs
+  digitalWrite(SELECT, HIGH);
+  digitalWrite(START,  HIGH);
+  // Output mode for shutter and on-board LED
   pinMode(SHUTTER, OUTPUT);
   pinMode(SHUTLED, OUTPUT);
   // Set Output mode for LEDs
@@ -200,10 +206,10 @@ void loop(){
   oldstate_start = reading;
 
   // Select next mode only once, even if SELECT button is kept pressed.
-  if (state_select == LOW){
+  if (state_select == HIGH){
     lock_select = 0;
   } 
-  if ((state_select == HIGH) and (0 == lock_select) and (0 == running)){  
+  if ((state_select == LOW) and (0 == lock_select) and (0 == running)){  
     if (program_selected < program_index){
       program_selected++;
     }else{
@@ -255,7 +261,7 @@ void loop(){
   }
             
   // Set "running" if start button was pressed and exposure is not already running.
-  if((0 == running) and (state_start == HIGH)){
+  if((0 == running) and (state_start == LOW)){
     Serial.print(now);
     Serial.println(" Running.");
     running = now;
@@ -302,7 +308,7 @@ void loop(){
         digitalWrite(SHUTTER, LOW);
         Serial.print(now);
         Serial.println(" End Exposure.");
-        shutter_available_at = now + 2000;
+        shutter_available_at = now + SHOTWAIT;
         Serial.print(now);
         Serial.print(" Shutter will be available again at: ");
         Serial.println(shutter_available_at);
