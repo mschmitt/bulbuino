@@ -49,8 +49,12 @@ For schematics, see Fritzing data enclosed in the repository.
 #define SHOTWAIT 2000
 #define CAM_LAG   200
 
+// Debug + development goodies:
+//
 // This is used to make time pass faster in testing. ;-)
 long millis_in_a_second = 1000;
+// Only print to serial if required.
+int debug = 0;
 
 // Stores millis per loop iteration
 long now;
@@ -156,9 +160,6 @@ char program_summary[40];
 long shutter_available_at = 0;
 
 void setup(){
-  Serial.begin(9600);
-  Serial.print(millis());
-  Serial.println(" Bulbuino is up.");
   // Activate inputs
   pinMode(SELECT,  INPUT);
   pinMode(START,   INPUT);
@@ -169,14 +170,15 @@ void setup(){
   pinMode(SHUTTER, OUTPUT);
   pinMode(SHUTLED, OUTPUT);
   // Set Output mode for LEDs
-  Serial.print(millis());
-  Serial.println(" Now setting LED modes.");
   for (int thisled = 0; thisled <= 7; thisled++){
-    Serial.print(millis());
-    Serial.print(" LED set to OUTPUT: ");
-    Serial.println(thisled);
     pinMode(led[thisled], OUTPUT);
   }
+  if (debug){
+    Serial.begin(9600);
+    Serial.print(millis());
+    Serial.println(" Bulbuino is up.");
+  }
+
 }
 
 void loop(){
@@ -222,9 +224,11 @@ void loop(){
       program[program_selected][1],
       program[program_selected][2]
       );
-    Serial.print(now);
-    Serial.print(" Selected Program: ");
-    Serial.println(program_summary);
+    if (debug){
+      Serial.print(now);
+      Serial.print(" Selected Program: ");
+      Serial.println(program_summary);
+    }
     // Prepare LED states according to selected program
     ledstate[0] = program_ledstate[program_selected][0];
     ledstate[1] = program_ledstate[program_selected][1];
@@ -262,8 +266,10 @@ void loop(){
             
   // Set "running" if start button was pressed and exposure is not already running.
   if((0 == running) and (state_start == LOW)){
-    Serial.print(now);
-    Serial.println(" Running.");
+    if (debug){
+      Serial.print(now);
+      Serial.println(" Running.");
+    }
     running = now;
     lock_select = 1;
   }
@@ -286,17 +292,21 @@ void loop(){
         // CAMLAG is a rough (but sufficient) estimate for shutter lag.
         // (This does nothing for exposure, but gives nice round EXIF data.)
         end_exposure = now + duration + CAM_LAG;
-        Serial.print(now);
-        Serial.print(" Start Exposure for milliseconds: ");
-        Serial.println(duration);
+        if (debug){
+          Serial.print(now);
+          Serial.print(" Start Exposure for milliseconds: ");
+          Serial.println(duration);
+        }
         shutter_open = 1;
       }else{
-        Serial.print(now);
-        Serial.println(" Skipping zero Exposure, not actually opening shutter.");
         program_step++;
-        Serial.print(now);
-        Serial.print(" Program Step++ (Skipping) -> ");
-        Serial.println(program_step);
+        if (debug){
+          Serial.print(now);
+          Serial.println(" Skipping zero Exposure, not actually opening shutter.");
+          Serial.print(now);
+          Serial.print(" Program Step++ (Skipping) -> ");
+          Serial.println(program_step);
+        }
       }
     }
   }
@@ -306,24 +316,28 @@ void loop(){
       if (now > end_exposure){
         digitalWrite(SHUTLED, LOW);
         digitalWrite(SHUTTER, LOW);
-        Serial.print(now);
-        Serial.println(" End Exposure.");
         shutter_available_at = now + SHOTWAIT;
-        Serial.print(now);
-        Serial.print(" Shutter will be available again at: ");
-        Serial.println(shutter_available_at);
         shutter_open = 0;
         program_step++;
-        Serial.print(now);
-        Serial.print(" Program Step++ -> ");
-        Serial.println(program_step);
+        if (debug){
+          Serial.print(now);
+          Serial.println(" End Exposure.");
+          Serial.print(now);
+          Serial.print(" Shutter will be available again at: ");
+          Serial.println(shutter_available_at);
+          Serial.print(now);
+          Serial.print(" Program Step++ -> ");
+          Serial.println(program_step);
+        }
       }
     }
   }
   // See whether end of program was reached and go back to selection phase.
   if (program_step > 2){
-    Serial.print(now);
-    Serial.println(" Done! (Program Step > 2) -> Reset Program Step to 0.");
+    if (debug){
+      Serial.print(now);
+      Serial.println(" Done! (Program Step > 2) -> Reset Program Step to 0.");
+    }
     running = 0;
     lock_select = 0;
     program_step = 0;
