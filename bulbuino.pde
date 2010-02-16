@@ -54,10 +54,7 @@ For schematics, see Fritzing data enclosed in the repository.
 // This is used to make time pass faster in testing. ;-)
 long millis_in_a_second = 1000;
 // Only print to serial if required.
-int debug = 0;
-
-// Stores millis per loop iteration
-long now;
+int debug = 1;
 
 // Button states and debouncing
 // Inverted input logic, so we can use internal pull-up
@@ -148,14 +145,10 @@ int blinkstate = HIGH;
 
 // Tracks whether shutter is closed or open
 int shutter_open = 0;
-// Stores calculated duration
-long duration;
 // When the running exposure should end
 long end_exposure;
 // Which step of the program is currently running?
 int program_step = 0;
-// Program_summary - For serial debug output during program selection
-char program_summary[40];
 // Used to keep the shutter closed for a while after each exposure.
 long shutter_available_at = 0;
 
@@ -182,7 +175,8 @@ void setup(){
 }
 
 void loop(){
-  now = millis();
+  // Stores millis per loop iteration
+  long now = millis();
   
   // Temporary holding space for button readouts
   int reading;
@@ -218,13 +212,15 @@ void loop(){
       program_selected = 0;
     }
     lock_select = 1;
-    sprintf(program_summary, "%i -> %i %i %i", 
-      program_selected, 
-      program[program_selected][0],
-      program[program_selected][1],
-      program[program_selected][2]
-      );
+
     if (debug){
+      char program_summary[40];
+      sprintf(program_summary, "%i -> %i %i %i", 
+        program_selected, 
+        program[program_selected][0],
+        program[program_selected][1],
+        program[program_selected][2]
+      );
       Serial.print(now);
       Serial.print(" Selected Program: ");
       Serial.println(program_summary);
@@ -288,7 +284,7 @@ void loop(){
         digitalWrite(SHUTLED, HIGH);
         digitalWrite(SHUTTER, HIGH);
         // Calculate when the shutter shall close again
-        duration = program[program_selected][program_step] * millis_in_a_second;
+        long duration = program[program_selected][program_step] * millis_in_a_second;
         // CAMLAG is a rough (but sufficient) estimate for shutter lag.
         // (This does nothing for exposure, but gives nice round EXIF data.)
         end_exposure = now + duration + CAM_LAG;
