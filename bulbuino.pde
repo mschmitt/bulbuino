@@ -66,6 +66,13 @@ int state_start = HIGH;
 int oldstate_select = HIGH;
 int oldstate_start = HIGH;
 
+// Mode:
+// 1) Classic bulbuino mode
+// 2) Interval mode
+// 
+// Switch mode by pressing SELECT+START simultaneously
+int mode = 1;
+
 // Block SELECT button when:
 // 1) It is held depressed
 // 2) Exposure is running
@@ -205,7 +212,22 @@ void loop(){
   }
   oldstate_start = reading;
 
-  // Select next mode only once, even if SELECT button is kept pressed.
+  // Switch mode of operation if SELECT+START are pressed simultaneously
+  if ((state_select == LOW) and (state_start == LOW)){
+    // Cancel all running operations
+    running = 0;
+    lock_select = 0;
+    program_step = 0;
+    digitalWrite(SHUTLED, LOW);
+    digitalWrite(SHUTTER, LOW);
+    if (1 == mode){
+      mode = 2;
+    }else{
+      mode = 1;
+    }
+  }
+
+  // Select next program only once, even if SELECT button is kept pressed.
   if (state_select == HIGH){
     lock_select = 0;
   } 
