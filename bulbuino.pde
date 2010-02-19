@@ -1,8 +1,23 @@
 /* 
 
-Bulbuino - Bulb Exposure Bracketer
+Bulbuino++ - Serial photo and bulb exposure robot
 
-Possible exposure combinations (seconds):
+Mode 1: Serial photo robot
+
+Possible intervals (seconds):
+
+a =  7.5s
+b =   15s
+c =   30s
+d =   60s (1m)
+e =  120s (2m)
+f =  240s (4m)
+g =  480s (8m)
+h =  900s (15m)
+
+Mode 2: Classic bulbuino mode -- Bulb exposure robot
+
+Possible exposure programs (seconds):
 a = 60    (1m)
 b = 120   (2m)
 c = 240   (4m)
@@ -37,7 +52,10 @@ Program     hgfedcba
 17          01010100
 18          10101000
 
-For schematics, see Fritzing data enclosed in the repository.
+The Fritzing data enclosed in the repository used to be accurate
+on the Arduino prototype board. 
+
+The pinout used now matches my Arduino Pro Mini integration.
 
 */
 
@@ -68,11 +86,13 @@ int oldstate_select = HIGH;
 int oldstate_start = HIGH;
 
 // Mode:
-// 1) Classic bulbuino mode
-// 2) Interval mode
+// 1) Serial photo robot
+// 2) Bulb exposure robot
 // 
 // Switch mode by pressing SELECT+START simultaneously
 int mode = 1;
+// Timestamp when mode was switched
+long mode_switched = 0;
 
 // Block SELECT button when:
 // 1) It is held depressed
@@ -83,7 +103,7 @@ int lock_select = 0;
 // which is then resolved to the actual exposure program by other means.
 int program_selected = 0;
 
-// Exposure programs. Time in seconds.
+// Exposure programs for Mode 2, bulb exposure robot. Time in seconds.
 int program[19][3]  = 
 {
   {   0,    0,    0},
@@ -107,7 +127,7 @@ int program[19][3]  =
   { 480, 1800, 7200}
 };
 
-// How to display selected program on LED row:
+// How to display selected program on LED row (Mode 2, bulb exposure robot):
 int program_ledstate[19][8] =
 {
   {0, 0, 0, 0, 0, 0, 0, 0},
@@ -131,7 +151,7 @@ int program_ledstate[19][8] =
   {1, 0, 1, 0, 1, 0, 0, 0}
 };
 
-// The number of known programs. Sorry, I know too little
+// The number of known programs in mode 2. Sorry, I know too little
 // C to properly find the number of elements in the array. ;-)
 int program_index   = 18;
 
@@ -141,6 +161,17 @@ int led[8] =  {2, 3, 4, 5, 6, 7, 8, 9};
 // Holds current state per LED for display according to
 // what is stored in program_selected. 
 int ledstate[8];
+
+// Timer interval for mode 1
+long interval_selected = 0;
+// Exposure timer for mode 1
+long next_exposure_at;
+// Track when to let go of the shutter again after pressing it
+// Just to avoid delay() calls.
+int shutter_is_down;
+long shutter_release_at;
+// Interval timings (in milliseconds)
+int interval[9] = {0, 7500, 15000, 30000, 60000, 120000, 240000, 480000, 960000};
 
 // running is set while exposure is running
 long running = 0;
@@ -183,6 +214,12 @@ void setup(){
 }
 
 void loop(){
+  //
+  // Loop entry phase.
+  //
+  // This is the phase when buttons are read and 
+  // the program decides which mode it is in.
+
   // Stores millis per loop iteration
   long now = millis();
   
@@ -210,55 +247,53 @@ void loop(){
   oldstate_start = reading;
 
   // Switch mode of operation if SELECT+START are pressed simultaneously
-  if ((state_select == LOW) and (state_start == LOW)){
-    // Cancel all running operations
+  if ((state_select == LOW) and (state_start == LOW) and (now - mode_switched > 1000)){
+    // "Debounce" mode switching
+    mode_switched = now;
+    // Cancel all running operations and reset all variables
     running = 0;
     lock_select = 0;
+    interval_selected = 0;
     program_step = 0;
+    program_selected = 0;
+    end_exposure = now;
+    shutter_available_at = now;
+    shutter_open = 0;
+    shutter_is_down = 0;
+    shutter_release_at = 0;
+    if (debug){
+      Serial.print(now);
+    }
     digitalWrite(SHUTLED, LOW);
     digitalWrite(SHUTTER, LOW);
     if (1 == mode){
       mode = 2;
+      if (debug){
+	Serial.println(" Mode is now: 2 (bulb exposure robot)");
+      }
     }else{
       mode = 1;
+      if (debug){
+	Serial.println(" Mode is now: 1 (serial photo robot)");
+      }
     }
   }
-
-  // Select next program only once, even if SELECT button is kept pressed.
-  if (state_select == HIGH){
-    lock_select = 0;
-  } 
-  if ((state_select == LOW) and (0 == lock_select) and (0 == running)){  
-    if (program_selected < program_index){
-      program_selected++;
-    }else{
-      program_selected = 0;
-    }
-    lock_select = 1;
-
+  // Set "running" if start button was pressed and exposure is not already running
+  // and we haven't just switched modes
+  if((0 == running) and (state_start == LOW) and (now - mode_switched > 1000)){
     if (debug){
-      char program_summary[40];
-      sprintf(program_summary, "%i -> %i %i %i", 
-        program_selected, 
-        program[program_selected][0],
-        program[program_selected][1],
-        program[program_selected][2]
-      );
       Serial.print(now);
-      Serial.print(" Selected Program: ");
-      Serial.println(program_summary);
+      Serial.println(" Running.");
     }
-    // Prepare LED states according to selected program
-    ledstate[0] = program_ledstate[program_selected][0];
-    ledstate[1] = program_ledstate[program_selected][1];
-    ledstate[2] = program_ledstate[program_selected][2];
-    ledstate[3] = program_ledstate[program_selected][3];
-    ledstate[4] = program_ledstate[program_selected][4];
-    ledstate[5] = program_ledstate[program_selected][5];
-    ledstate[6] = program_ledstate[program_selected][6];
-    ledstate[7] = program_ledstate[program_selected][7];
+    running = now;
+    lock_select = 1;
   }
+  // 
+  // End of loop entry phase.
+  //
   
+  // Take care of the LEDs
+  //
   // Is blinking requested (exposure running)
   // Then set blinkstate accordingly.
   // Otherwise, blinkstate is HIGH (LED is on)
@@ -273,8 +308,7 @@ void loop(){
   }else{
     blinkstate = HIGH;
   }
- 
-  // Set LEDs to requested state.
+  // Set LEDs to requested state, salted with blinkstate.
   for (int thisled = 0; thisled <= 7; thisled++){
     if (ledstate[thisled]){
       digitalWrite(led[thisled], blinkstate);
@@ -282,83 +316,167 @@ void loop(){
       digitalWrite(led[thisled], LOW);
     }
   }
+  // LEDs should be fine now.
             
-  // Set "running" if start button was pressed and exposure is not already running.
-  if((0 == running) and (state_start == LOW)){
-    if (debug){
-      Serial.print(now);
-      Serial.println(" Running.");
-    }
-    running = now;
-    lock_select = 1;
-  }
-
-  // We will take three exposures
-  // 1) program[program_selected][0]
-  // 2) program[program_selected][1]
-  // 3) program[program_selected][2]
-  //
-  // program_step holds 0, 1, 2 - The step that we are currently working on.
-  // 
-  // Unset the running flag if program step has gone over 2 after last shutter close
-  if (running){
-    if ((0 == shutter_open) and (now > shutter_available_at)){
-      if (program[program_selected][program_step] > 0){
-        digitalWrite(SHUTLED, HIGH);
-        digitalWrite(SHUTTER, HIGH);
-        // Calculate when the shutter shall close again
-        long duration = program[program_selected][program_step] * millis_in_a_second;
-        // CAMLAG is a rough (but sufficient) estimate for shutter lag.
-        // (This does nothing for exposure, but gives nice round EXIF data.)
-        end_exposure = now + duration + CAM_LAG;
-        if (debug){
-          Serial.print(now);
-          Serial.print(" Start Exposure for milliseconds: ");
-          Serial.println(duration);
-        }
-        shutter_open = 1;
+  if (1 == mode){  
+    // serial photo robot
+    // Select next interval only once, even if SELECT button is kept pressed.
+    if (state_select == HIGH){
+      lock_select = 0;
+    } 
+    if ((state_select == LOW) and (0 == lock_select) and (0 == running)){  
+      if (interval_selected < 8){
+        interval_selected++;
       }else{
-        program_step++;
-        if (debug){
-          Serial.print(now);
-          Serial.println(" Skipping zero Exposure, not actually opening shutter.");
-          Serial.print(now);
-          Serial.print(" Program Step++ (Skipping) -> ");
-          Serial.println(program_step);
-        }
+        interval_selected = 0;
       }
+      lock_select = 1;
+  
+      if (debug){
+        char program_summary[40];
+        Serial.print(now);
+        Serial.print(" Selected Interval: ");
+        Serial.println(interval_selected);
+      }
+      // Turn on the respective LED for chosen interval
+      for (int thisled = 0; thisled <= 7; thisled++){
+        ledstate[thisled] = 0;
+      }
+      ledstate[interval_selected-1] = 1;
+    }  
+    // do nothing if interval is 0
+    if (0 == interval_selected){
+      running = 0;
     }
-  }
-  if (1 == shutter_open){
-    // See whether we are ready to close the shutter again
-    if (program[program_selected][program_step] > 0){
-      if (now > end_exposure){
-        digitalWrite(SHUTLED, LOW);
+    if (running){
+      // Let go of the shutter if required.
+      if (shutter_is_down and (now > shutter_release_at)){
         digitalWrite(SHUTTER, LOW);
-        shutter_available_at = now + SHOTWAIT;
-        shutter_open = 0;
-        program_step++;
+        digitalWrite(SHUTLED, LOW);
+        shutter_is_down = 0;
         if (debug){
           Serial.print(now);
-          Serial.println(" End Exposure.");
+          Serial.println(" Shutter released.");
+        }
+      }
+      // Shoot.
+      if (now > next_exposure_at){
+        next_exposure_at   = now + interval[interval_selected];
+        shutter_is_down    = now;
+        shutter_release_at = now + CAM_LAG;
+        digitalWrite(SHUTTER, HIGH);
+        digitalWrite(SHUTLED, HIGH);
+        if (debug){
           Serial.print(now);
-          Serial.print(" Shutter will be available again at: ");
-          Serial.println(shutter_available_at);
-          Serial.print(now);
-          Serial.print(" Program Step++ -> ");
-          Serial.println(program_step);
+          Serial.print(" Shutter pressed. Next shot at: ");
+          Serial.println(next_exposure_at);
+        }
+      }
+    }  
+  }else if (2 == mode){
+    // bulb exposure robot
+    // Select next program only once, even if SELECT button is kept pressed.
+    if (state_select == HIGH){
+      lock_select = 0;
+    } 
+    if ((state_select == LOW) and (0 == lock_select) and (0 == running)){  
+      if (program_selected < program_index){
+        program_selected++;
+      }else{
+        program_selected = 0;
+      }
+      lock_select = 1;
+  
+      if (debug){
+        char program_summary[40];
+        sprintf(program_summary, "%i -> %i %i %i", 
+          program_selected, 
+          program[program_selected][0],
+          program[program_selected][1],
+          program[program_selected][2]
+        );
+        Serial.print(now);
+        Serial.print(" Selected Program: ");
+        Serial.println(program_summary);
+      }
+      // Prepare LED states according to selected program
+      ledstate[0] = program_ledstate[program_selected][0];
+      ledstate[1] = program_ledstate[program_selected][1];
+      ledstate[2] = program_ledstate[program_selected][2];
+      ledstate[3] = program_ledstate[program_selected][3];
+      ledstate[4] = program_ledstate[program_selected][4];
+      ledstate[5] = program_ledstate[program_selected][5];
+      ledstate[6] = program_ledstate[program_selected][6];
+      ledstate[7] = program_ledstate[program_selected][7];
+    }
+ 
+    // We will take three exposures
+    // 1) program[program_selected][0]
+    // 2) program[program_selected][1]
+    // 3) program[program_selected][2]
+    //
+    // program_step holds 0, 1, 2 - The step that we are currently working on.
+    // 
+    // Unset the running flag if program step has gone over 2 after last shutter close
+    if (running){
+      if ((0 == shutter_open) and (now > shutter_available_at)){
+        if (program[program_selected][program_step] > 0){
+          digitalWrite(SHUTLED, HIGH);
+          digitalWrite(SHUTTER, HIGH);
+          // Calculate when the shutter shall close again
+          long duration = program[program_selected][program_step] * millis_in_a_second;
+          // CAMLAG is a rough (but sufficient) estimate for shutter lag.
+          // (This does nothing for exposure, but gives nice round EXIF data.)
+          end_exposure = now + duration + CAM_LAG;
+          if (debug){
+            Serial.print(now);
+            Serial.print(" Start Exposure for milliseconds: ");
+            Serial.println(duration);
+          }
+          shutter_open = 1;
+        }else{
+          program_step++;
+          if (debug){
+            Serial.print(now);
+            Serial.println(" Skipping zero Exposure, not actually opening shutter.");
+            Serial.print(now);
+            Serial.print(" Program Step++ (Skipping) -> ");
+            Serial.println(program_step);
+          }
         }
       }
     }
-  }
-  // See whether end of program was reached and go back to selection phase.
-  if (program_step > 2){
-    if (debug){
-      Serial.print(now);
-      Serial.println(" Done! (Program Step > 2) -> Reset Program Step to 0.");
+    if (1 == shutter_open){
+      // See whether we are ready to close the shutter again
+      if (program[program_selected][program_step] > 0){
+        if (now > end_exposure){
+          digitalWrite(SHUTLED, LOW);
+          digitalWrite(SHUTTER, LOW);
+          shutter_available_at = now + SHOTWAIT;
+          shutter_open = 0;
+          program_step++;
+          if (debug){
+            Serial.print(now);
+            Serial.println(" End Exposure.");
+            Serial.print(now);
+            Serial.print(" Shutter will be available again at: ");
+            Serial.println(shutter_available_at);
+            Serial.print(now);
+            Serial.print(" Program Step++ -> ");
+            Serial.println(program_step);
+          }
+        }
+      }
     }
-    running = 0;
-    lock_select = 0;
-    program_step = 0;
+    // See whether end of program was reached and go back to selection phase.
+    if (program_step > 2){
+      if (debug){
+        Serial.print(now);
+        Serial.println(" Done! (Program Step > 2) -> Reset Program Step to 0.");
+      }
+      running = 0;
+      lock_select = 0;
+      program_step = 0;
+    }
   }
 }
