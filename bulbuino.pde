@@ -139,7 +139,8 @@ int ledstate[8];
 long running = 0;
 
 // Blink state foo (for during exposure)
-long blink_interval = 200;
+long blink_interval_on = 10;
+long blink_interval_off = 240;
 long blink_timestamp;
 int blinkstate = HIGH;
 
@@ -242,10 +243,10 @@ void loop(){
   if (running){
     if ((blinkstate == HIGH) and (now > blink_timestamp)){
       blinkstate = LOW;
-      blink_timestamp = now + blink_interval;
+      blink_timestamp = now + blink_interval_off;
     }else if (now > blink_timestamp){
       blinkstate = HIGH; 
-      blink_timestamp = now + blink_interval;
+      blink_timestamp = now + blink_interval_on;
     }
   }else{
     blinkstate = HIGH;
