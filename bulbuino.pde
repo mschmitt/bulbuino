@@ -41,9 +41,9 @@ For schematics, see Fritzing data enclosed in the repository.
 
 */
 
-#define SHUTTER     2
-#define SELECT      3
-#define START       4  
+#define SHUTTER    12
+#define SELECT     10
+#define START      11  
 #define SHUTLED    13
 #define DEBOUNCE   50
 #define SHOTWAIT 2000
@@ -136,7 +136,7 @@ int program_ledstate[19][8] =
 int program_index   = 18;
 
 // Pins to which the LEDs are connected:
-int led[8] =  {5, 6, 7, 8, 9, 10, 11, 12};
+int led[8] =  {2, 3, 4, 5, 6, 7, 8, 9};
 
 // Holds current state per LED for display according to
 // what is stored in program_selected. 
