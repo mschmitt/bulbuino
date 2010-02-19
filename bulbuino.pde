@@ -65,7 +65,7 @@ The pinout used now matches my Arduino Pro Mini integration.
 #define SHUTLED    13
 #define DEBOUNCE   50
 #define SHOTWAIT 2000
-#define CAM_LAG   200
+#define CAM_LAG   500
 
 // Debug + development goodies:
 //
