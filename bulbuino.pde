@@ -72,7 +72,7 @@ The pinout used now matches my Arduino Pro Mini integration.
 // This is used to make time pass faster in testing. ;-)
 long millis_in_a_second = 1000;
 // Only print to serial if required.
-int debug = 1;
+int debug = 0;
 
 // Button states and debouncing
 // Inverted input logic, so we can use internal pull-up
@@ -177,8 +177,8 @@ int interval[9] = {0, 7500, 15000, 30000, 60000, 120000, 240000, 480000, 960000}
 long running = 0;
 
 // Blink state foo (for during exposure)
-long blink_interval_on = 10;
-long blink_interval_off = 240;
+long blink_interval_on = 5;
+long blink_interval_off = 495;
 long blink_timestamp;
 int blinkstate = HIGH;
 
