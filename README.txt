@@ -59,13 +59,7 @@ stuff. LED state/Program selection still is a mess, but it works. :-)
 Schematics
 ----------
 
-The Fritzing data enclosed in the repository used to be accurate
-on the Arduino prototype board.
-
-The pinout used now matches my Arduino Pro Mini integration, with nicer
-pin routing on the circuit board.
-
-An update with different cabling may follow at a later date.
+Fritzing data is enclosed in the repository.
 
 License and Disclaimer
 ----------------------

@@ -52,10 +52,7 @@ Program     hgfedcba
 17          01010100
 18          10101000
 
-The Fritzing data enclosed in the repository used to be accurate
-on the Arduino prototype board. 
-
-The pinout used now matches my Arduino Pro Mini integration.
+Fritzing data is enclosed in the repository.
 
 */
 
