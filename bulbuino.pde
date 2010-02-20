@@ -6,14 +6,14 @@ Mode 1: Serial photo robot
 
 Possible intervals (seconds):
 
-a =  7.5s
-b =   15s
-c =   30s
-d =   60s (1m)
-e =  120s (2m)
-f =  240s (4m)
-g =  480s (8m)
-h =  900s (15m)
+a =   1s
+b =   2s
+c =   4s
+d =   8s
+e =   15s
+f =   30s
+g =   60s (1m)
+h =  120s (2m)
 
 Mode 2: Classic bulbuino mode -- Bulb exposure robot
 
@@ -171,7 +171,7 @@ long next_exposure_at;
 int shutter_is_down;
 long shutter_release_at;
 // Interval timings (in milliseconds)
-int interval[9] = {0, 7500, 15000, 30000, 60000, 120000, 240000, 480000, 960000};
+int interval[9] = {0, 1000, 2000, 4000, 8000, 15000, 30000, 60000, 120000};
 
 // running is set while exposure is running
 long running = 0;
