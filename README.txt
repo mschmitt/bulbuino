@@ -9,14 +9,14 @@ Mode 1 - Serial photo robot
 This mode is active after power-on. By pressing the SELECT button, the 
 serial photo interval is selected. 
 
-LED1 =  7.5s
-LED2 =   15s
-LED3 =   30s
-LED4 =   60s (1m)
-LED5 =  120s (2m)
-LED6 =  240s (4m)
-LED7 =  480s (8m)
-LED8 =  900s (15m)
+LED1 =    1s
+LED2 =    2s
+LED3 =    4s
+LED4 =    8s
+LED5 =   15s
+LED6 =   30s
+LED7 =   60s (1m)
+LED8 =  120s (2m)
 
 After pressing the START button, camera control starts and can only be 
 aborted by powering off the device or by switching modes.
