@@ -56,6 +56,8 @@ Fritzing data is enclosed in the repository.
 
 */
 
+#include <avr/sleep.h>
+
 #define SHUTTER    12
 #define SELECT     10
 #define START      11  
@@ -188,6 +190,11 @@ int program_step = 0;
 // Used to keep the shutter closed for a while after each exposure.
 long shutter_available_at = 0;
 
+// Idle counter for powerdown
+long idle_since = millis();
+// Idle timeout: 5 minutes
+long sleep_after = 300000;
+
 void setup(){
   // Activate inputs
   pinMode(SELECT,  INPUT);
@@ -249,6 +256,7 @@ void loop(){
     mode_switched = now;
     // Cancel all running operations and reset all variables
     running = 0;
+    idle_since = now;
     lock_select = 0;
     interval_selected = 0;
     program_step = 0;
@@ -288,6 +296,19 @@ void loop(){
   // 
   // End of loop entry phase.
   //
+
+  // Go to deep sleep if the unit has been idle for too long.
+  if ((0 == running) and (now - idle_since > sleep_after)){
+    if (debug){
+      Serial.print(now);
+      Serial.println("Idle timeout. Going to sleep now. Good night!");
+    }
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+    sleep_enable();
+    sleep_mode();
+    // Adios. Will need to rewrite this if I ever free up a pin for a 
+    // wake-up interrupt.
+  }
   
   // Take care of the LEDs
   //
@@ -344,6 +365,7 @@ void loop(){
     // do nothing if interval is 0
     if (0 == interval_selected){
       running = 0;
+      idle_since = now;
     }
     if (running){
       // Let go of the shutter if required.
@@ -472,6 +494,7 @@ void loop(){
         Serial.println(" Done! (Program Step > 2) -> Reset Program Step to 0.");
       }
       running = 0;
+      idle_since = 0;
       lock_select = 0;
       program_step = 0;
     }
