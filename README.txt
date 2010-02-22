@@ -47,14 +47,18 @@ LED8 = 7200 (120m)
 Choose either time, or any 3-step combination, bracketed by one or two steps,
 as you cycle through the available programs.
 
-After 5 minutes of idle time, the controller is sent to powerdown mode. Beware 
-that the power LED on the Arduino will still be draining the battery at a 
-very slow rate. (This source http://is.gd/8T9rO claims to have measured 
-400 µA current in powerdown sleep mode on a 3.3V Arduino pro mini.)
+Power saving
+------------
 
-There is currently no way to wake up from poweroff as the allowable 
-interrupt pins are used by LEDs in the current design. Sorry, but you will
-have to powercycle to wake up the unit.
+With the 3.3V Arduino Pro Mini, power consumption during exposure is about
+<FIXME> mA. Tests have shown that a Duracell 9V block will power the unit for
+at least 48 hours.
+
+If no exposure program is running, the controller is sent to powerdown mode
+after 5 minutes. Beware that the power LED on the Arduino will still be 
+draining the battery at a very slow rate. (This source http://is.gd/8T9rO 
+claims to have measured 400 µA current in powerdown sleep mode on a 3.3V 
+Arduino pro mini.)
 
 History
 -------

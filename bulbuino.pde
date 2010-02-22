@@ -193,7 +193,7 @@ long shutter_available_at = 0;
 // Idle counter for powerdown
 long idle_since = millis();
 // Idle timeout: 5 minutes
-long sleep_after = 300000;
+long sleep_after = 300 * millis_in_a_second;
 
 void setup(){
   // Activate inputs
@@ -255,6 +255,10 @@ void loop(){
     // "Debounce" mode switching
     mode_switched = now;
     // Cancel all running operations and reset all variables
+    if (debug){
+      Serial.print(now);
+      Serial.println(" Mode switch detected, canceling all operations.");
+    }
     running = 0;
     idle_since = now;
     lock_select = 0;
@@ -301,7 +305,11 @@ void loop(){
   if ((0 == running) and (now - idle_since > sleep_after)){
     if (debug){
       Serial.print(now);
-      Serial.println("Idle timeout. Going to sleep now. Good night!");
+      Serial.println(" Idle timeout. Going to sleep now. Good night!");
+    }
+    // Turn off all LEDs
+    for (int thisled = 0; thisled <= 7; thisled++){
+      digitalWrite(led[thisled], LOW);
     }
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
@@ -343,6 +351,8 @@ void loop(){
       lock_select = 0;
     } 
     if ((state_select == LOW) and (0 == lock_select) and (0 == running)){  
+      // Pat idle timer
+      idle_since = now;
       if (interval_selected < 8){
         interval_selected++;
       }else{
@@ -399,6 +409,8 @@ void loop(){
       lock_select = 0;
     } 
     if ((state_select == LOW) and (0 == lock_select) and (0 == running)){  
+      // Pat idle timer
+      idle_since = now;
       if (program_selected < program_index){
         program_selected++;
       }else{
