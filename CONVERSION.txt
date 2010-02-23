@@ -40,7 +40,7 @@ Basic conversion:
 - Pipe through actual MPEG conversion:  
   $ ls */*JPG | jpeg2yuv -f 25 -I p | 
     yuvscaler -M RATIO_1728_1080_1152_720 -O SIZE_1280x720 | 
-    mpeg2enc -f 12 -o timelapse2.mpeg
+    mpeg2enc -f 12 -o timelapse2.m1v
   (-f 12 is the preset for 720p.)
 
 This way, I'll have a video that will maintain correct aspect ratio, but
@@ -68,6 +68,20 @@ I will crop (1152-972)/2 = 90 pixels each from the top and bottom:
 - Crop input with the USE_WidthxHeight+WidthOffset+HeightOffset keyword:
   $ ls */*JPG | jpeg2yuv -f 25 -I p | 
     yuvscaler -I USE_1728x972+0+90 -O SIZE_1280x720 | 
-    mpeg2enc -f 12 -o timelapse2.mpeg
+    mpeg2enc -f 12 -o timelapse2.m1v
+
+Overdub with audio: 
+
+- Prepare an audio track that is as long as the video, save in MP2 format, 
+  e.g. as soundtrack.mp2 with 384k bitrate and without tags.
+
+- Take bitrate from Video (-f 12 -> 19400) and bitrate from MP2 (as saved,
+  e.g. 384), add them, add 10% --> (19400 + 384) * 1.01 = 19982
+
+- Mux audio and video:
+  $ mplex -V -b 1000,1000 -r 19982 soundtrack.mp2 timelapse2.m1v \
+    -o timelapse.mpeg
+  (-V is variable bitrate; -r is bitrate as calculated beforehand, -r
+  is the video buffer size to be used, in KB.)
 
 -> Done. Enjoy your 720p HD video. :-)
