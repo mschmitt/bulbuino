@@ -4,11 +4,11 @@ Video Conversion Notes
 These are my notes for converting image series taken using Bulbuino++ as a
 serial photo robot into videos. 
 
-It's an Open Source workflow using mjpegtools, with nice UNIX-style piping 
-between the different conversion tools. 
+It's an Open Source workflow using http://mjpeg.sf.net, with nice UNIX-style 
+pipelining between the different conversion tools. 
 
 When playing a lot with the different conversion options, it might be useful
-to redirect the stream generated from jpeg2yuf to a file, making it more
+to redirect the stream generated from jpeg2yuv to a file, making it more
 quickly accessible for later scaling and encoding experiments.
 
 720p High Definition
@@ -29,7 +29,7 @@ Basic conversion:
 
 - Scale down to 720p size before viewing:
   $ ls */*JPG | jpeg2yuv -f 25 -I p | yuvscaler -O SIZE_1280x720 | yuvplay
-  This produces a 1080x720 version, without black bars. As 
+  This produces a 1080x720 version, without black bars.
 
 - Add conversion ratio: RATIO_WidthIn_WidthOut_HeightIn_HeightOut
   $ ls */*JPG | jpeg2yuv -f 25 -I p | 
