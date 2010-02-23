@@ -1,0 +1,73 @@
+Video Conversion Notes
+----------------------
+
+These are my notes for converting image series taken using Bulbuino++ as a
+serial photo robot into videos. 
+
+It's an Open Source workflow using mjpegtools, with nice UNIX-style piping 
+between the different conversion tools. 
+
+When playing a lot with the different conversion options, it might be useful
+to redirect the stream generated from jpeg2yuf to a file, making it more
+quickly accessible for later scaling and encoding experiments.
+
+720p High Definition
+--------------------
+
+I shoot photos that can be scaled down to 1280x720, or that can be cropped 
+to the desired format.
+
+My input photos for 720p are in "Small JPEG" mode from the Canon 350D, 
+1728x1152 pixels.
+
+Basic conversion:
+
+- Pipe a list of photo filenames through jpeg2yuv and view immediately. Be
+  advised that yuvplay is a slow real-time preview.
+  $ ls */*JPG | jpeg2yuv -f 25 -I p | yuvplay
+  (-f is frame rate, -I is interlacing mode)
+
+- Scale down to 720p size before viewing:
+  $ ls */*JPG | jpeg2yuv -f 25 -I p | yuvscaler -O SIZE_1280x720 | yuvplay
+  This produces a 1080x720 version, without black bars. As 
+
+- Add conversion ratio: RATIO_WidthIn_WidthOut_HeightIn_HeightOut
+  $ ls */*JPG | jpeg2yuv -f 25 -I p | 
+    yuvscaler -M RATIO_1728_1080_1152_720 -O SIZE_1280x720 | 
+    yuvplay
+  This produces a 1280x720 version with black bars left & right.
+
+- Pipe through actual MPEG conversion:  
+  $ ls */*JPG | jpeg2yuv -f 25 -I p | 
+    yuvscaler -M RATIO_1728_1080_1152_720 -O SIZE_1280x720 | 
+    mpeg2enc -f 12 -o timelapse2.mpeg
+  (-f 12 is the preset for 720p.)
+
+This way, I'll have a video that will maintain correct aspect ratio, but
+with black bars left&right sides, which will build up to a black frame around
+the video, if viewed in a letterbox format. It is better to crop the image
+while scaling:
+
+Input ratio: 3:2
+Input format: 1728x1152
+Output ratio: 16:9.
+Output format: 1280x720
+
+3/2  = 27/18
+16/9 = 32/18   
+-->> The output format is wider, so I will crop the input image at top
+     and bottom.
+
+The target width is 1280, so I'll calculate the desired raw image height 
+from that:
+
+h = (1728 * 720) / 1280 = 972
+
+I will crop (1152-972)/2 = 90 pixels each from the top and bottom:
+
+- Crop input with the USE_WidthxHeight+WidthOffset+HeightOffset keyword:
+  $ ls */*JPG | jpeg2yuv -f 25 -I p | 
+    yuvscaler -I USE_1728x972+0+90 -O SIZE_1280x720 | 
+    mpeg2enc -f 12 -o timelapse2.mpeg
+
+-> Done. Enjoy your 720p HD video. :-)
