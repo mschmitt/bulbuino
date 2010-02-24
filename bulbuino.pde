@@ -72,6 +72,8 @@ Fritzing data is enclosed in the repository.
 long millis_in_a_second = 1000;
 // Only print to serial if required.
 int debug = 0;
+// Enable or disable shutter LED on pin 13.
+int debug_shutter = 0;
 
 // Button states and debouncing
 // Inverted input logic, so we can use internal pull-up
@@ -394,7 +396,9 @@ void loop(){
         shutter_is_down    = now;
         shutter_release_at = now + CAM_LAG;
         digitalWrite(SHUTTER, HIGH);
-        digitalWrite(SHUTLED, HIGH);
+        if (debug_shutter){
+           digitalWrite(SHUTLED, HIGH);
+        }
         if (debug){
           Serial.print(now);
           Serial.print(" Shutter pressed. Next shot at: ");
@@ -452,7 +456,9 @@ void loop(){
     if (running){
       if ((0 == shutter_open) and (now > shutter_available_at)){
         if (program[program_selected][program_step] > 0){
-          digitalWrite(SHUTLED, HIGH);
+          if (debug_shutter){
+            digitalWrite(SHUTLED, HIGH);
+          }
           digitalWrite(SHUTTER, HIGH);
           // Calculate when the shutter shall close again
           long duration = program[program_selected][program_step] * millis_in_a_second;
