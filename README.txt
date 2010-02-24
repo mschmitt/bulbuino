@@ -47,24 +47,33 @@ LED8 = 7200 (120m)
 Choose either time, or any 3-step combination, bracketed by one or two steps,
 as you cycle through the available programs.
 
-Power saving
-------------
+Power requirements
+------------------
 
-With the 3.3V Arduino Pro Mini, power consumption during exposure is about
-<FIXME> mA. Tests have shown that a Duracell 9V block will power the unit for
-at least 48 hours.
+My own implementation of the device uses an Arduino Pro Mini 3.3V running 
+at 8Mhz to minimize Power requirements.
 
-If no exposure program is running, the controller is sent to powerdown mode
-after 5 minutes. Beware that the power LED on the Arduino will still be 
-draining the battery at a very slow rate. (This source http://is.gd/8T9rO 
-claims to have measured 400 µA current in powerdown sleep mode on a 3.3V 
-Arduino pro mini.)
+Tests have shown that a Duracell 9V block will keep this unit powered for up 
+to 48 hours.
+
+If no exposure program is running (no faint LED blinking), the controller 
+is sent to powerdown mode after 5 minutes. Beware that the power LED on the 
+Arduino will still be draining the battery at a very slow rate. Power-cycle
+to wake up. Or route your RESET button to the outside of the case.
+
+With the 3.3V Arduino Pro Mini, power consumption is:
+
+   Idle:                   5mA
+   Program Selection:      15-35mA (depending on number of LEDs displayed)
+   Program running:        (No reliable value, due to blinking LED)
+   Shutter open:           40mA
+   Powerdown mode:         400µA
 
 History
 -------
 
 This started out as a test for user interaction, buttons, optocoupler and 
-stuff. LED state/Program selection still is a mess, but it works. :-)
+stuff. LED state/Program selection still is somewhat messy, but it works. :-)
 
 Schematics
 ----------
