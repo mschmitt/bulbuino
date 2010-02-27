@@ -1,0 +1,25 @@
+List of parts used for my version of Bulbuino
+---------------------------------------------
+
+ 1x Arduino Pro Mini 3.3V 
+ 1x 24-Pin IC socket for the Arduino
+ 1x Handheld enclosure with 9V battery compartment
+ 1x 9V battery clip
+ 1x 100x50mm raster board (part of)
+ 1x Switch
+ 2x Pushbutton
+ 8x Resistor 100R
+ 8x LED
+ 1x Straight 50pin male header (connections between case and logic board)
+ 2x Straight 20pin female header (connections between case and logic board)
+ 1x 3.5mm stereo jack 
+ 2x Optocoupler 4N35
+ 
+Plus:
+ 1x FTDI break-out board for Arduino Pro Mini 3.3V (for programming)
+ 1x Old IDE cable for the connections between case and logic board
+
+Warning:
+ The raster board as shown in the photo has an isolated wire bridge on the
+ back, that I won't show. Please do yourself a favour and design a nicer 
+ layout for your own Bulbuino. :-)
