@@ -58,9 +58,10 @@ Fritzing data is enclosed in the repository.
 
 #include <avr/sleep.h>
 
-#define SHUTTER    12
+#define BATTERY     0
 #define SELECT     10
 #define START      11  
+#define SHUTTER    12
 #define SHUTLED    13
 #define DEBOUNCE   50
 #define SHOTWAIT 2000
@@ -75,16 +76,22 @@ int debug = 0;
 // Enable or disable shutter LED on pin 13.
 int debug_shutter = 0;
 
+// Set VCC to voltage of the used arduino board.
+float vcc = 3.3;
+
 // Button states and debouncing
 // Inverted input logic, so we can use internal pull-up
 long last_statechange_select;
 long last_statechange_start;
+long last_statechange_battery;
 
 int state_select = HIGH;
 int state_start = HIGH;
+int state_battery = 0;
 
 int oldstate_select = HIGH;
 int oldstate_start = HIGH;
+int oldstate_battery = 0;
 
 // Mode:
 // 1) Serial photo robot
@@ -99,6 +106,22 @@ long mode_switched = 0;
 // 1) It is held depressed
 // 2) Exposure is running
 int lock_select = 0;
+
+// Block BATTERY TEST button when it is held depressed
+int lock_battery = 0;
+
+// Time stamp for displaying battery status
+// Initialized to zero so battery status is not displayed on startup
+long batterydisplay_until = 0;
+
+// State of battery display
+// 0 Display not requested
+// 1 Display has been started
+// 2 Display has ended
+int batterydisplay = 0;
+
+// Stores battery voltage for battery test button action
+float absvolt = 0;
 
 // The SELECT button modifies only this value,
 // which is then resolved to the actual exposure program by other means.
@@ -162,6 +185,8 @@ int led[8] =  {2, 3, 4, 5, 6, 7, 8, 9};
 // Holds current state per LED for display according to
 // what is stored in program_selected. 
 int ledstate[8];
+// Store LEDstate here while battery display is in progress
+int saved_ledstate[8];
 
 // Timer interval for mode 1
 long interval_selected = 0;
@@ -231,7 +256,7 @@ void loop(){
   
   // Temporary holding space for button readouts
   int reading;
-  
+
   // Track state of SELECT button & debounce
   reading = digitalRead(SELECT);
   if(reading != oldstate_select){
@@ -251,6 +276,20 @@ void loop(){
       state_start = reading;
   }
   oldstate_start = reading;
+
+  // Track state of BATTERY TEST button & debounce
+  if (0 == analogRead(BATTERY)){
+    reading = 0;
+  }else{
+    reading = 1;
+  }
+  if(reading != oldstate_battery){
+    last_statechange_battery = now;
+  }
+  if (now - last_statechange_battery > DEBOUNCE){
+      state_battery = reading;
+  }
+  oldstate_battery = reading;
 
   // Switch mode of operation if SELECT+START are pressed simultaneously
   if ((state_select == LOW) and (state_start == LOW) and (now - mode_switched > 1000)){
@@ -319,12 +358,36 @@ void loop(){
     // Adios. Will need to rewrite this if I ever free up a pin for a 
     // wake-up interrupt.
   }
+
+  // See if we are supposed to show the battery readout
+  if (state_battery and (0 == lock_battery) and (0 == batterydisplay)){
+    lock_battery = 1;
+    float value = analogRead(BATTERY);
+    // The voltage divider has split the voltage in thirds, to make
+    // it palpaple for 3.3V arduino's analog pin.
+    absvolt = (vcc / 1024.0) * value * 3.0;
+    if (debug){
+      Serial.print(now);
+      Serial.print(" ");
+      Serial.print(absvolt);
+      Serial.println(" Volt");
+      Serial.print(now);
+      Serial.println(" Battery display state 0 => 1");
+    }
+    batterydisplay_until = now + 2000;
+    batterydisplay = 1;
+  }
+  // Release lock_battery if the BATTERY TEST button has been released
+  if(lock_battery and (0 == state_battery)){
+    lock_battery = 0;
+  }
   
   // Take care of the LEDs
   //
   // Is blinking requested (exposure running)
   // Then set blinkstate accordingly.
   // Otherwise, blinkstate is HIGH (LED is on)
+  //
   if (running){
     if ((blinkstate == HIGH) and (now > blink_timestamp)){
       blinkstate = LOW;
@@ -335,6 +398,58 @@ void loop(){
     }
   }else{
     blinkstate = HIGH;
+  }
+  if (1 == batterydisplay){
+    int batt_ledstate[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    // Set LED states according to voltage
+    if (absvolt > 9.0){
+      batt_ledstate[7] = 1;
+    }
+    if (absvolt > 8.8){
+      batt_ledstate[6] = 1;
+    }
+    if (absvolt > 8.5){
+      batt_ledstate[5] = 1;
+    }
+    if (absvolt > 8.2){
+      batt_ledstate[4] = 1;
+    }
+    if (absvolt > 7.8){
+      batt_ledstate[3] = 1;
+    }
+    if (absvolt > 7.5){
+      batt_ledstate[2] = 1;
+    }
+    if (absvolt > 7.3){
+      batt_ledstate[1] = 1;
+    } 
+    // Lowest LED always visible
+    batt_ledstate[0] = 1;
+    // Save ledstate for the time when battery display is over
+    for (int thisled = 0; thisled <= 7; thisled++){    
+      saved_ledstate[thisled] = ledstate[thisled];
+      ledstate[thisled]       = batt_ledstate[thisled];
+    }    
+    batterydisplay = 2; // Now wait till end of display time
+    if (debug){
+      Serial.print(now);
+      Serial.println(" Battery display state 1 => 2");
+    }
+  }
+  // If battery display is requested, override blinking
+  if (2 == batterydisplay){
+    blinkstate = HIGH;
+  }
+  // Restore old LED state when blinking time is over
+  if ((now > batterydisplay_until) and (2 == batterydisplay)){
+    for (int thisled = 0; thisled <= 7; thisled++){    
+      ledstate[thisled]       = saved_ledstate[thisled];
+    }    
+    if (debug){
+      Serial.print(now);
+      Serial.println(" Battery display state 2 => 0");
+    }
+    batterydisplay = 0;
   }
   // Set LEDs to requested state, salted with blinkstate.
   for (int thisled = 0; thisled <= 7; thisled++){

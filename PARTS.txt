@@ -7,7 +7,7 @@ List of parts used for my version of Bulbuino
  1x 9V battery clip
  1x 100x50mm raster board (part of)
  1x Switch
- 2x Pushbutton
+ 3x Pushbutton 
  8x Resistor 100R
  8x LED
  1x Straight 50pin male header (connections between case and logic board)
