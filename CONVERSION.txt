@@ -76,12 +76,20 @@ Overdub with audio:
   e.g. as soundtrack.mp2 with 384k bitrate and without tags.
 
 - Take bitrate from Video (-f 12 -> 19400) and bitrate from MP2 (as saved,
-  e.g. 384), add them, add 10% --> (19400 + 384) * 1.01 = 19982
+  e.g. 384), add them, add 1% --> (19400 + 384) * 1.01 = 19982
 
 - Mux audio and video:
   $ mplex -V -b 1000,1000 -r 19982 soundtrack.mp2 timelapse2.m1v \
     -o timelapse.mpeg
-  (-V is variable bitrate; -r is bitrate as calculated beforehand, -r
+  (-V is variable bitrate; -r is bitrate as calculated beforehand, -b
   is the video buffer size to be used, in KB.)
 
 -> Done. Enjoy your 720p HD video. :-)
+
+Quicktime:
+
+- If you would rather edit the mute video file in iMovie:
+  yuv2lav -o timelapse.qt -b 1000 -f q -q 100 < timelapse.yuv
+  (-b is the size of the JPEG conversion buffer, -f q is quicktime 
+  output format, -q is JPEG compression quality 100%.)
+
